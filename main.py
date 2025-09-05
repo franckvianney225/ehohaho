@@ -2,6 +2,7 @@
 import argparse
 import sys
 from core import colors, logger, config, utils
+from modules.api_tests import APIPentestScanner
 
 # Import des modules
 from modules import (
@@ -28,10 +29,23 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # === SCAN RÉSEAU ===
+    # === SCAN RÉSEAU === (mise à jour)
     scan_parser = subparsers.add_parser("scan", help="Scan réseau")
     scan_parser.add_argument("--target", required=True, help="IP ou domaine à scanner")
     scan_parser.add_argument("--ports", required=True, help="Liste des ports ex: 22,80,443")
+    scan_parser.add_argument('--protocol', choices=['tcp', 'udp'], 
+                        default='tcp', help='Protocole à utiliser (tcp/udp)')
+    # Nouveaux arguments pour l'analyse
+    scan_parser.add_argument('--no-analysis', action='store_true', 
+                        help='Désactiver l\'analyse automatique des résultats')
+    scan_parser.add_argument('--export-json', type=str, 
+                        help='Exporter les résultats en JSON')
+    scan_parser.add_argument('--export-csv', type=str,
+                        help='Exporter les résultats en CSV')
+    scan_parser.add_argument('--timeout', type=float, default=1.0,
+                        help='Timeout de connexion en secondes (défaut: 1.0)')
+    scan_parser.add_argument('--workers', type=int, default=200,
+                        help='Nombre de threads concurrents (défaut: 200)')
 
     # === BRUTE FORCE ===
     brute_parser = subparsers.add_parser("brute", help="Brute force logins")
@@ -49,10 +63,15 @@ def main():
     osint_parser = subparsers.add_parser("osint", help="OSINT & reconnaissance")
     osint_parser.add_argument("--domaine", required=True)
 
-    # === API TESTING ===
+   # === API TESTING ===
     api_parser = subparsers.add_parser("api", help="Tests d'API")
-    api_parser.add_argument("--url", required=True)
-
+    api_parser.add_argument("--url", required=True, help="URL de l'API")
+    api_parser.add_argument("--http-method", type=str, default="GET", help="Méthode HTTP (GET, POST, PUT, DELETE, ...)")
+    api_parser.add_argument("--api-headers", type=str, help='Headers JSON (ex: \'{"Authorization":"Bearer ..."}\')')
+    api_parser.add_argument("--api-data", type=str, help='Form data JSON (ex: \'{"key":"value"}\')')
+    api_parser.add_argument("--api-json", type=str, help='JSON body (ex: \'{"name":"John"}\')')
+    api_parser.add_argument("--token", type=str, help="Token d'authentification Bearer si nécessaire")
+        
     # === MOBILE TESTING ===
     mobile_parser = subparsers.add_parser("mobile", help="Tests mobiles")
     mobile_parser.add_argument("--apk", required=True, help="Fichier APK cible")
@@ -110,7 +129,19 @@ def main():
         # === ROUTAGE SELON LE MODULE ===
         if args.command == "scan":
             ports = [int(p.strip()) for p in args.ports.split(",")]
-            scan_network.scan_network(args.target, ports)
+            is_udp = (args.protocol == 'udp')
+            analyze = not args.no_analysis  # Par défaut True, False si --no-analysis
+            
+            scan_network.scan_network(
+                target=args.target, 
+                ports=ports, 
+                udp=is_udp,
+                timeout=args.timeout,
+                export_json=args.export_json,
+                export_csv=args.export_csv,
+                analyze=analyze
+            )
+
 
         elif args.command == "brute":
             brute.run_bruteforce(args.service, args.target, args.username, args.wordlist)
@@ -122,7 +153,31 @@ def main():
             reconnaissance.run_osint(args.domaine)
 
         elif args.command == "api":
-            api_tests.run_api_tests(args.url)
+            try:
+                headers = json.loads(args.api_headers) if args.api_headers else None
+                data = json.loads(args.api_data) if args.api_data else None
+                json_data = json.loads(args.api_json) if args.api_json else None
+            except json.JSONDecodeError:
+                logger.log_error("Headers/Data/JSON doivent être valides en JSON.")
+                sys.exit(1)
+
+            scanner = APIPentestScanner(base_url=args.url, token=args.token)
+
+            if args.http_method != "GET" or data or json_data or headers:
+                # Requête personnalisée
+                r = scanner._request(endpoint="", method=args.http_method, data=data, headers=headers, params=None)
+                try:
+                    body = r.json()
+                except:
+                    body = r.text
+                print(json.dumps({
+                    "status_code": r.status_code,
+                    "headers": dict(r.headers),
+                    "body": body
+                }, indent=2))
+            else:
+                # Scan complet pentest
+                scanner.run()
 
         elif args.command == "mobile":
             mobile.run_mobile_analysis(args.apk)

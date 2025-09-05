@@ -1,0 +1,180 @@
+{
+  "scan_results": [
+    {
+      "host": "164.160.40.182",
+      "port": 53,
+      "proto": "udp",
+      "state": "open|filtered",
+      "service": "domain",
+      "banner": null
+    },
+    {
+      "host": "164.160.40.182",
+      "port": 123,
+      "proto": "udp",
+      "state": "open|filtered",
+      "service": "ntp",
+      "banner": null
+    },
+    {
+      "host": "164.160.40.182",
+      "port": 161,
+      "proto": "udp",
+      "state": "open|filtered",
+      "service": "snmp",
+      "banner": null
+    }
+  ],
+  "interpretation": {
+    "summary": {
+      "total_ports": 3,
+      "open_ports": 3,
+      "services_identified": 0,
+      "risk_distribution": {
+        "critical": 0,
+        "high": 1,
+        "medium": 1,
+        "low": 1,
+        "info": 0
+      }
+    },
+    "services": [
+      {
+        "port": 53,
+        "protocol": "udp",
+        "service": "domain",
+        "analysis": {
+          "port": 53,
+          "protocol": "udp",
+          "risk_level": "medium",
+          "description": "Service DNS - Résolution de noms de domaine",
+          "risks": [
+            "Énumération de zones DNS (zone transfer)",
+            "Cache poisoning possible",
+            "Révélation d'informations internes",
+            "Amplification DDoS possible"
+          ],
+          "recommendations": [
+            "Vérifier la configuration des zone transfers",
+            "Implémenter DNSSEC si possible",
+            "Limiter les requêtes récursives",
+            "Surveiller les requêtes anormales"
+          ],
+          "tests": [
+            "nslookup -type=any {target}",
+            "dig axfr @{target} domain.com",
+            "dnsrecon -t axfr -d domain.com -n {target}"
+          ],
+          "detected_port": 53,
+          "detected_protocol": "udp",
+          "detected_service_name": "domain",
+          "normalized_service_name": "dns",
+          "banner": null
+        }
+      },
+      {
+        "port": 123,
+        "protocol": "udp",
+        "service": "ntp",
+        "analysis": {
+          "port": 123,
+          "protocol": "udp",
+          "risk_level": "low",
+          "description": "NTP - Synchronisation d'horloge réseau",
+          "risks": [
+            "Amplification DDoS (réflexion)",
+            "Révélation d'informations système",
+            "Manipulation possible de l'heure système"
+          ],
+          "recommendations": [
+            "Configurer des restrictions d'accès",
+            "Utiliser NTP authentifié si possible",
+            "Monitorer les requêtes anormales",
+            "Limiter les commandes de monitoring"
+          ],
+          "tests": [
+            "ntpq -p {target}",
+            "ntpdate -q {target}",
+            "nmap -sU -p123 --script ntp-monlist {target}"
+          ],
+          "detected_port": 123,
+          "detected_protocol": "udp",
+          "detected_service_name": "ntp",
+          "normalized_service_name": "ntp",
+          "banner": null
+        }
+      },
+      {
+        "port": 161,
+        "protocol": "udp",
+        "service": "snmp",
+        "analysis": {
+          "port": 161,
+          "protocol": "udp",
+          "risk_level": "high",
+          "description": "SNMP - Protocole de gestion réseau",
+          "risks": [
+            "Community strings faibles (public/private)",
+            "Révélation d'informations système sensibles",
+            "Possibilité de modification de configuration",
+            "Énumération complète du réseau"
+          ],
+          "recommendations": [
+            "Changer les community strings par défaut",
+            "Utiliser SNMPv3 avec authentification",
+            "Filtrer l'accès SNMP par IP",
+            "Désactiver SNMP si non nécessaire"
+          ],
+          "tests": [
+            "snmpwalk -v2c -c public {target}",
+            "snmpwalk -v2c -c private {target}",
+            "onesixtyone -c community.txt {target}"
+          ],
+          "detected_port": 161,
+          "detected_protocol": "udp",
+          "detected_service_name": "snmp",
+          "normalized_service_name": "snmp",
+          "banner": null
+        }
+      }
+    ],
+    "recommendations": [
+      "Utiliser NTP authentifié si possible",
+      "Utiliser SNMPv3 avec authentification",
+      "Configurer des restrictions d'accès",
+      "Filtrer l'accès SNMP par IP",
+      "Implémenter DNSSEC si possible",
+      "Limiter les requêtes récursives",
+      "Monitorer les requêtes anormales",
+      "Désactiver SNMP si non nécessaire",
+      "Vérifier la configuration des zone transfers",
+      "Changer les community strings par défaut",
+      "Surveiller les requêtes anormales",
+      "Limiter les commandes de monitoring"
+    ],
+    "immediate_actions": [
+      "Port 161/udp (snmp) - Risque high"
+    ],
+    "further_testing": [
+      "nslookup -type=any {target}",
+      "dig axfr @{target} domain.com",
+      "dnsrecon -t axfr -d domain.com -n {target}",
+      "ntpq -p {target}",
+      "ntpdate -q {target}",
+      "nmap -sU -p123 --script ntp-monlist {target}",
+      "snmpwalk -v2c -c public {target}",
+      "snmpwalk -v2c -c private {target}",
+      "onesixtyone -c community.txt {target}"
+    ]
+  },
+  "target": "164.160.40.182",
+  "scan_params": {
+    "ports": [
+      53,
+      161,
+      123
+    ],
+    "udp": true,
+    "timeout": 1.0
+  }
+}
